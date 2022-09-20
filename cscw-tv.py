@@ -14,12 +14,15 @@ sessions_path = 'scheduling'
 
 
 class PaperVideo:
-    def __init__(self, name, id, session, video_path = '', presenter = ''):
+    def __init__(self, name, id, session, session_number, talk_number = 0, video_path = '', presenter = ''):
         self.name = name
         self.id = id
         self.session = session
+        self.session_number = session_number
         self.video_path = video_path
         self.presenter = presenter
+        self.talk_number = talk_number
+        
 
 
 class CSCWManager:
@@ -28,16 +31,23 @@ class CSCWManager:
         self.player = VLCPlayer() # Create the player
         self.tv_channel_id = tv_channel_id
     
+    def sortPapers(self, paper):
+        return paper.talk_number
+
     # Sends messages to channel corresponding to the session for each paper and then play each paper presentation
     async def broadcast_session(self, papers):
-        for paper in papers:
+
+        sorted_papers = sorted(papers, key=self.sortPapers)
+
+        for paper in sorted_papers:
             message = 'The video presentation for ' + paper.name + ' will be starting now!'
             try:
                 if paper.presenter != None and isinstance(paper.presenter, str):
                     message = message + '\nPresenter: ' + paper.presenter
-                await self.bot.send_message_by_name(paper.session, message) # Send message about the paper in the session channel
+
+                await self.bot.send_message_by_name(paper.session, paper.session_number, message) # Send message about the paper in the session channel
             except Exception as ex:
-                print('Error sending video announcement to session channel for paper "' + paper.name + '" Reason: ' + str(ex))
+                print('Error sending video announcement to session channel for paper ' + paper.name + 'Reason: ' + str(ex))
             try:
                 self.player.play_video(paper.video_path)
                 time.sleep(1)
@@ -92,11 +102,13 @@ async def main():
         for m, paper_info in session_data.iterrows():
             # Add all the paper ids with rows that have matching session ids to the lists for both weeks
             if paper_info["session_number"] == session_times["session_number"]:
-                session_papers.append(PaperVideo(id = paper_info["paper_id"], 
+                session_papers.append(PaperVideo(id = paper_info["cycle"] + '_' + str(paper_info["paper_id"]), 
                 name = paper_info["title"], 
                 session = paper_info["session_name"],
+                session_number = paper_info["session_number"],
                 presenter = paper_info["presenter"],
-                video_path=os.path.join(media_path, paper_info["paper_id"] + '.mp4')))
+                talk_number = int(paper_info["talk_number"]),
+                video_path=os.path.join(media_path, paper_info["cycle"] + '_' + str(paper_info["paper_id"]) + '.mp4')))
         
     
         # Schedule the session to be broadcast at the correct time for both week 1 and week 2

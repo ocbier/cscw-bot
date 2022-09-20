@@ -20,10 +20,10 @@ To initiate the bot and automated playback, run `cscw-tv.py`. This will schedule
 
 # Scheduling Metadata Files
 The following are required csv files which must be present in the "scheduling" directory:
-- `sessions.csv`: Includes the IDs and names of each session, as well as the paper names, conference cycle, and paper IDs. 
+- `sessions.csv`: Includes the IDs and names of each session, as well as the paper names, conference cycle, and paper IDs.\
 ![plot](./docs/sessions.png)
 
-- `timetable.csv`: Contains the start datetime of each of the numbered sessions, index by session ID. This file contains a column for the session number, week 1 session time, and week 2 session time. Note that all datetimes are in UTC (24-hour format).
+- `timetable.csv`: Contains the start datetime of each of the numbered sessions, index by session ID. This file contains a column for the session number, week 1 session time, and week 2 session time. Note that all datetimes are in UTC (24-hour format).\
 ![plot](./docs/timetable.png)
 
 # Video and Subtitle Files

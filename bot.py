@@ -25,9 +25,14 @@ class Bot:
 
 
     # Sends a message to a channel with the matching channel name.
-    async def send_message_by_name(self, channel_name, message):
+    async def send_message_by_name(self, channel_name, channel_number, message):
+
+        str_channel_number = str(channel_number)
+        if channel_number < 10:
+            str_channel_number = '0' + str_channel_number
 
         f_name = channel_name.strip().lower().replace(' ', '-').replace('&', '-')
+        f_name = str_channel_number + '-' + f_name
         print('Sending message to channel with name ' + f_name)
         channel_obj = discord.utils.get(self.client.get_all_channels(), name=f_name, type=discord.ChannelType.text)
 
