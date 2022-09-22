@@ -14,8 +14,8 @@ sessions_path = 'scheduling'
 
 
 class PaperVideo:
-    def __init__(self, name, id, session, session_number, talk_number = 0, video_path = '', presenter = ''):
-        self.name = name
+    def __init__(self, title, id, session, session_number, talk_number = 0, video_path = '', presenter = ''):
+        self.title = title
         self.id = id
         self.session = session
         self.session_number = session_number
@@ -31,16 +31,27 @@ class CSCWManager:
         self.player = VLCPlayer() # Create the player
         self.tv_channel_id = tv_channel_id
     
-    def sortPapers(self, paper):
+    def sort_papers(self, paper):
         return paper.talk_number
+
+    def create_session_message(self, papers):
+        message = 'The session ' + papers[0].session + ' is about to start!\n\nThe following papers will be presented:'
+
+        # Add titles to the announcement message
+        count = 0 
+        for count, paper in enumerate(papers, start=1):
+            message = message + '\n' + str(count) + '. ' + paper.title
+
+        return message
+
 
     # Sends messages to channel corresponding to the session for each paper and then play each paper presentation
     async def broadcast_session(self, papers):
 
-        sorted_papers = sorted(papers, key=self.sortPapers)
+        sorted_papers = sorted(papers, key=self.sort_papers)
 
         for paper in sorted_papers:
-            message = 'The video presentation for ' + paper.name + ' will be starting now!'
+            message = 'The video presentation for ' + paper.title + ' will be starting now!'
             try:
                 if paper.presenter != None and isinstance(paper.presenter, str):
                     message = message + '\nPresenter: ' + paper.presenter
@@ -63,9 +74,10 @@ class CSCWManager:
 
     # Sends message to the main session channel for the session and then broadcast it.
     async def start_session (self, papers, filler_video = ''):
-        message = 'The session ' + papers[0].session + ' is about to start!'
+        session_message = self.create_session_message(papers)
+
         try:
-            await self.bot.send_message(self.tv_channel_id, message)
+            await self.bot.send_message(self.tv_channel_id, session_message)
         except Exception as ex:
             print('Sending session message failed for session "' + papers[0].session + '" Reason: ' + str(ex))
 
@@ -103,7 +115,7 @@ async def main():
             # Add all the paper ids with rows that have matching session ids to the lists for both weeks
             if paper_info["session_number"] == session_times["session_number"]:
                 session_papers.append(PaperVideo(id = paper_info["cycle"] + '_' + str(paper_info["paper_id"]), 
-                name = paper_info["title"], 
+                title = paper_info["title"], 
                 session = paper_info["session_name"],
                 session_number = paper_info["session_number"],
                 presenter = paper_info["presenter"],
