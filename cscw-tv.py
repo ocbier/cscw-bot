@@ -22,10 +22,11 @@ class SessionVideo:
 
 
 class Paper :
-    def __init__(self, title, id, talk_number): 
+    def __init__(self, title, id, talk_number, presenter_name = None): 
         self.title = title
         self.id = id
         self.talk_number = talk_number
+        self.presenter_name = presenter_name
 
     @staticmethod
     def get_paper (papers, cycle, id):
@@ -62,7 +63,12 @@ class CSCWManager:
         return message
 
 
+    def create_paper_message(self, paper):
+        message = 'The video presentation for "' + paper.title + '" will be starting now!'
+        if not (paper.presenter is None or paper.presenter == ''):
+            message = message + '\nPresented by: ' + paper.presenter
 
+        
 
 
     # Sends messages to session channel (before playback) for each video that is a paper presenation and then plays all session videos.
@@ -70,8 +76,8 @@ class CSCWManager:
         for video in session_videos:
             #Announce the video in the session channel, if it is a paper presentation
             if video.is_paper():
-                message = 'The video presentation for "' + video.paper.title + '" will be starting now!'
                 try:
+                    message = self.create_paper_message(video.paper)
                     channel_name = Bot.get_valid_name(self.current_session_name, self.current_session_number)
                     print('Sending presentation announcement to channel: ' + channel_name)
                     await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
@@ -110,6 +116,7 @@ class CSCWManager:
                 # If this is a paper, get the info for the paper
                 if playlist_video["is_paper"]:
                     paper = Paper.get_paper(papers = papers_data, id = playlist_video["paper_id"], cycle = playlist_video["cycle"])
+                    paper.presenter_name = playlist_video["presenter_name"]
                 else:
                     print('Not a paper')
 
