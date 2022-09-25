@@ -22,9 +22,10 @@ class SessionVideo:
 
 
 class Paper :
-    def __init__(self, title, id, talk_number, presenter_name = None): 
+    def __init__(self, title, id, cycle, talk_number, presenter_name = None): 
         self.title = title
         self.id = id
+        self.cycle = cycle
         self.talk_number = talk_number
         self.presenter_name = presenter_name
 
@@ -32,22 +33,25 @@ class Paper :
     def get_paper (papers, cycle, id):
         for i, paper in papers.iterrows():
             if paper["cycle"] == cycle and paper["paper_id"] == id:
-                return Paper(title = paper["title"], id = paper["paper_id"], talk_number = paper["talk_number"])
+                return Paper(title = paper["title"], cycle = paper["cycle"] ,id = paper["paper_id"], talk_number = paper["talk_number"])
 
 
 
 class CSCWManager:
-    def __init__(self, bot_token, tv_channel_id, playlist_file, papers_file, media_path):
+    def __init__(self, bot_token, tv_channel_id, playlist_file, papers_file, authors_file, media_path):
         self.bot = Bot(bot_token) # Create the bot
         self.player = VLCPlayer() # Create the player
         self.tv_channel_id = tv_channel_id
         self.playlist_file = playlist_file
-        self.papers_file = papers_file
         self.media_path = media_path
 
         self.current_session_name = 'Idle'
         self.current_session_number = -1
+
+        self.papers_data = pd.read_csv(papers_file)
+        self.authors_data = pd.read_csv(authors_file)
     
+    # obsolete
     def sort_papers(self, paper):
         return paper.talk_number
 
@@ -63,8 +67,47 @@ class CSCWManager:
         return message
 
 
+    def create_author_message(self, paper):
+        message = ''
+
+        j = 1
+        for i, row in self.authors_data.iterrows():
+            if row["cycle"] == paper.id and row["id"] == paper.id:
+                column = "author_" + str(j)
+                next_author = row[column] if column in self.authors_data.columns else None
+                while next_author is not None and len(next_author) > 2:
+                    cur_author = next_author
+                    j += 1
+                    column = "author_" + str(j)
+                    next_author = row[column] if column in self.authors_data.columns else None
+                    
+                    #First author
+                    if j is 2:
+                        message += cur_author
+                    # Normal case, after first
+                    elif next_author is not None and len(next_author) > 2:
+                        message += ', ' + cur_author    
+                    # This is the last author
+                    else:
+                        message += 'and ' + cur_author
+
+
+
+        message.strip().replace('\n', '')
+        if len(message) > 2:
+            return message
+
+        return None
+
+
     def create_paper_message(self, paper):
         message = 'The video presentation for "' + paper.title + '" will be starting now!'
+
+        # Display the author names
+        authors = self.create_author_message(paper)
+        if not authors is None:
+            message = message + '\nAuthors: ' + authors
+
         if not (paper.presenter is None or paper.presenter == ''):
             message = message + '\nPresented by: ' + paper.presenter
 
@@ -104,7 +147,7 @@ class CSCWManager:
     async def start_session (self, session_number, session_name, filler_video = ''):
         
         playlist_data = pd.read_csv(self.playlist_file)
-        papers_data = pd.read_csv(self.papers_file)
+        
 
         session_videos = []
 
@@ -115,7 +158,7 @@ class CSCWManager:
 
                 # If this is a paper, get the info for the paper
                 if playlist_video["is_paper"]:
-                    paper = Paper.get_paper(papers = papers_data, id = playlist_video["paper_id"], cycle = playlist_video["cycle"])
+                    paper = Paper.get_paper(papers = self.papers_data, id = playlist_video["paper_id"], cycle = playlist_video["cycle"])
                     paper.presenter_name = playlist_video["presenter_name"]
                 else:
                     print('Not a paper')
@@ -131,6 +174,7 @@ class CSCWManager:
             print('Sending session message failed for session "' + str(session_number) + '. ' + str(session_name) +'" Reason: ' + str(ex))
 
         try:
+            # Update the current session name and number
             self.current_session_name = session_name
             self.current_session_number = session_number
             await self.broadcast_session(session_videos)               
@@ -154,6 +198,7 @@ async def main():
     scheduling_path = 'scheduling'
     playlist_file = os.path.join(scheduling_path, 'playlist.csv')
     papers_file = os.path.join(scheduling_path, 'papers.csv')
+    authors_file = os.path.join(scheduling_path, 'authors.csv')
     sessions_file = os.path.join(scheduling_path, 'sessions.csv')
     filler_video = os.path.join(media_path, 'cscw_filler.mp4')
 
@@ -166,6 +211,7 @@ async def main():
         tv_channel_id = live_tv_channel,
         playlist_file = playlist_file,
         papers_file = papers_file,
+        authors_file = authors_file,
         media_path = media_path)
 
 
