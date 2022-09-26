@@ -39,12 +39,13 @@ class Paper :
 
 
 class CSCWManager:
-    def __init__(self, bot_token, tv_channel_id, playlist_file, papers_file, authors_file, media_path):
+    def __init__(self, bot_token, tv_channel_id, playlist_file, papers_file, authors_file, media_path, filler_video = ''):
         self.bot = Bot(bot_token) # Create the bot
         self.player = VLCPlayer() # Create the player
         self.tv_channel_id = tv_channel_id
         self.playlist_file = playlist_file
         self.media_path = media_path
+        self.filler_video = filler_video
 
         self.current_session_name = 'Idle'
         self.current_session_number = -1
@@ -114,7 +115,13 @@ class CSCWManager:
 
         return message
 
-        
+    # Play a filler video
+    def play_filler(self):
+        if self.filler_video != '':
+                try:      
+                    self.player.play_video(self.filler_video)
+                except:
+                    print('Error playing the filler video') 
 
 
     # Sends messages to session channel (before playback) for each video that is a paper presenation and then plays all session videos.
@@ -143,6 +150,7 @@ class CSCWManager:
             except:
                 print('Error playing video ' + video.video_path)
 
+      
             
 
     # Sends message to the main session channel for the session and then broadcast it. Reads the playlist and papers data from file
@@ -188,12 +196,10 @@ class CSCWManager:
 
         self.current_session_name = 'idle'
         self.current_session_number = -1
-        # Play a filler video after session, if specified.
-        if filler_video != '':
-                try:      
-                    self.player.play_video(filler_video)
-                except:
-                    print('Error playing the filler video') 
+
+        # Play a filler video after session
+        self.play_filler()
+      
         
 
     
@@ -207,6 +213,8 @@ async def main():
     sessions_file = os.path.join(scheduling_path, 'sessions.csv')
     filler_video = os.path.join(media_path, 'cscw_filler.mp4')
 
+    
+    timetable_data = pd.read_csv(sessions_file)
     scheduler = AsyncIOScheduler(timezone=utc)
 
     load_dotenv()
@@ -217,10 +225,10 @@ async def main():
         playlist_file = playlist_file,
         papers_file = papers_file,
         authors_file = authors_file,
-        media_path = media_path)
+        media_path = media_path,
+        filler_video = filler_video)
 
-
-    timetable_data = pd.read_csv(sessions_file)
+    
 
     print ('Scheduling sessions...')
     for i, session_row in timetable_data.iterrows():
@@ -237,18 +245,18 @@ async def main():
         scheduler.add_job(manager.start_session, 'date', run_date=w1_time, kwargs = {
             'session_number': session_row["session_number"],
             'session_name': session_row["session_name"],
-            'filler_video': filler_video
             })
         scheduler.add_job(manager.start_session, 'date', run_date=w2_time, kwargs = {
             'session_number': session_row["session_number"],
             'session_name': session_row["session_name"],
-            'filler_video': filler_video
             })
 
     scheduler.start()
     print("Scheduling complete.")
+    
+    manager.play_filler()
+      
     print('Starting Discord bot. Please keep this script running.')
-
     try:
         await manager.bot.start()
     except BaseException as ex:
