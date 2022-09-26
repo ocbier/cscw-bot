@@ -43,7 +43,7 @@ class Bot:
         if channel_number < 10:
             str_channel_number = '0' + str_channel_number
 
-        f_name = channel_name.strip().lower().replace(' ', '-').replace('&', 'and').replace(',', '-')
+        f_name = channel_name.strip().lower().replace(' ', '-').replace('&', 'and').replace(',', '').replace("'", '')
         f_name = str_channel_number + '-' + f_name
 
         return f_name
