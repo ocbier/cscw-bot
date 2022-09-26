@@ -3,8 +3,9 @@ import os
 
 
 media_path = os.path.join('..', 'videos')
+scheduling_path = os.path.join('..', 'scheduling')
 video_suffix = 'mp4'
-out_file = 'playlist.csv'
+out_file = os.path.join(scheduling_path, 'playlist.csv')
 
   
 
@@ -37,8 +38,8 @@ def get_session_number(papers, cycle, paper_id):
     return -1
 
 
-submission_data = pd.read_csv(os.path.join('..', 'scheduling', 'links.csv'))
-papers_data = pd.read_csv(os.path.join('..', 'scheduling', 'papers.csv'))
+submission_data = pd.read_csv(os.path.join(scheduling_path, 'links.csv'))
+papers_data = pd.read_csv(os.path.join(scheduling_path, 'papers.csv'))
 
 playlist_items = []
 
