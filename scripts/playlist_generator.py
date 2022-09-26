@@ -18,10 +18,10 @@ def map_cycle(cycle):
             name = 'apr'
         
         case 'cscw21d':
-            name = 'Jan22'
+            name = 'jan22'
 
         case 'cscw22a':
-            name = 'Jul21'
+            name = 'jul21'
 
         case 'cscw22b':
             name = 'jan'
@@ -30,7 +30,7 @@ def map_cycle(cycle):
 
 def get_session_number(papers, cycle, paper_id):
     for i, paper in papers.iterrows():
-        if str(paper["cycle"]) == cycle and str(paper["paper_id"]) == paper_id:
+        if str(paper["cycle"]).lower() == cycle and str(paper["paper_id"]) == paper_id:
             return paper["session_number"]
 
 

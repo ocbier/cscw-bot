@@ -32,8 +32,9 @@ class Paper :
     @staticmethod
     def get_paper (papers, cycle, id):
         for i, paper in papers.iterrows():
-            if paper["cycle"] == cycle and paper["paper_id"] == id:
-                return Paper(title = paper["title"], cycle = paper["cycle"] ,id = paper["paper_id"], talk_number = paper["talk_number"])
+            paper_cycle = paper["cycle"].lower()
+            if paper_cycle == cycle.lower() and paper["paper_id"] == id:
+                return Paper(title = paper["title"], cycle = paper_cycle, id = paper["paper_id"], talk_number = paper["talk_number"])
 
 
 
@@ -72,7 +73,7 @@ class CSCWManager:
 
         j = 1
         for i, row in self.authors_data.iterrows():
-            if row["cycle"] == paper.cycle and row["id"] == paper.id:
+            if row["cycle"].lower() == paper.cycle and row["id"] == paper.id:
                 column = "author_" + str(j)
                 next_author = str(row[column]).strip() if column in self.authors_data.columns else None
                 while next_author is not None and len(next_author) > 2:
