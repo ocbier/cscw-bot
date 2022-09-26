@@ -16,16 +16,16 @@ def map_cycle(cycle):
 
     match cycle:
         case 'cscw21b': 
-            name = 'apr'
+            name = 'jan'
         
         case 'cscw21d':
-            name = 'jan22'
+            name = 'apr'
 
         case 'cscw22a':
             name = 'jul21'
 
         case 'cscw22b':
-            name = 'jan'
+            name = 'jan22'
     
     return name
 
