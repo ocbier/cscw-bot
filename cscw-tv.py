@@ -22,12 +22,12 @@ class SessionVideo:
 
 
 class Paper :
-    def __init__(self, title, id, cycle, talk_number, presenter_name = None): 
+    def __init__(self, title, id, cycle, talk_number, presenter = None): 
         self.title = title
         self.id = id
         self.cycle = cycle
         self.talk_number = talk_number
-        self.presenter_name = presenter_name
+        self.presenter = presenter
 
     @staticmethod
     def get_paper (papers, cycle, id):
@@ -48,8 +48,8 @@ class CSCWManager:
         self.current_session_name = 'Idle'
         self.current_session_number = -1
 
-        self.papers_data = pd.read_csv(papers_file)
-        self.authors_data = pd.read_csv(authors_file)
+        self.papers_data = pd.read_csv(papers_file).fillna('')
+        self.authors_data = pd.read_csv(authors_file).fillna('')
     
     # obsolete
     def sort_papers(self, paper):
@@ -61,8 +61,8 @@ class CSCWManager:
         # Add titles to the announcement message
         count = 0 
         for count, video in enumerate(session_videos, start=1):
-            if video.is_paper():
-                message = message + '\n' + str(count) + '. ' + video.paper.title
+            if video.is_paper() and not video.paper.title.strip() == '':
+                message = message + '\n' + str(count) + '. ' + video.paper.title.strip()
 
         return message
 
@@ -72,14 +72,14 @@ class CSCWManager:
 
         j = 1
         for i, row in self.authors_data.iterrows():
-            if row["cycle"] == paper.id and row["id"] == paper.id:
+            if row["cycle"] == paper.cycle and row["id"] == paper.id:
                 column = "author_" + str(j)
-                next_author = row[column] if column in self.authors_data.columns else None
+                next_author = str(row[column]).strip() if column in self.authors_data.columns else None
                 while next_author is not None and len(next_author) > 2:
                     cur_author = next_author
                     j += 1
                     column = "author_" + str(j)
-                    next_author = row[column] if column in self.authors_data.columns else None
+                    next_author = str(row[column]).strip() if column in self.authors_data.columns else None
                     
                     #First author
                     if j == 2:
@@ -89,7 +89,7 @@ class CSCWManager:
                         message += ', ' + cur_author    
                     # This is the last author
                     else:
-                        message += 'and ' + cur_author
+                        message += ' and ' + cur_author
 
 
 
@@ -110,6 +110,8 @@ class CSCWManager:
 
         if not (paper.presenter is None or paper.presenter == ''):
             message = message + '\nPresented by: ' + paper.presenter
+
+        return message
 
         
 
@@ -146,8 +148,7 @@ class CSCWManager:
     # at the beginning of each session, to allow for the user to change playlist or paper info, any time before the session starts.
     async def start_session (self, session_number, session_name, filler_video = ''):
         
-        playlist_data = pd.read_csv(self.playlist_file)
-        
+        playlist_data = pd.read_csv(self.playlist_file).fillna('')
 
         session_videos = []
 
@@ -159,7 +160,7 @@ class CSCWManager:
                 # If this is a paper, get the info for the paper
                 if playlist_video["is_paper"]:
                     paper = Paper.get_paper(papers = self.papers_data, id = playlist_video["paper_id"], cycle = playlist_video["cycle"])
-                    paper.presenter_name = playlist_video["presenter"]
+                    paper.presenter = playlist_video["presenter"]
                 else:
                     print('Not a paper')
 
@@ -168,7 +169,7 @@ class CSCWManager:
         # Case for an empty session.
         if len(session_videos) < 1:
             return
-            
+
         session_message = self.create_session_message(session_videos, session_name)
 
         try:
