@@ -35,7 +35,7 @@ def get_session_number(papers, cycle, paper_id):
             return paper["session_number"]
 
 
-    return -1
+    return None
 
 
 submission_data = pd.read_csv(os.path.join(scheduling_path, 'links.csv'))
@@ -43,7 +43,8 @@ papers_data = pd.read_csv(os.path.join(scheduling_path, 'papers.csv'))
 
 playlist_items = []
 
-
+files_found = 0
+playlist_items_added = 0
 for i, submission_info in submission_data.iterrows():
     pcs_url = submission_info["URL of your paper's PCS submission page"]
 
@@ -65,7 +66,8 @@ for i, submission_info in submission_data.iterrows():
     if not os.path.isfile(os.path.join(media_path, video_file)):
         print('Associated file for PCS URL ' + pcs_url + ' not found. ' + 'Expected: ' + str(os.path.abspath(os.path.join(media_path, video_file))))
         continue
-
+    
+    files_found += 1
     cycle_name = map_cycle(pcs_cycle)
 
     if cycle_name is None:
@@ -73,12 +75,18 @@ for i, submission_info in submission_data.iterrows():
         continue
 
     session_number = get_session_number(papers_data, cycle_name, paper_id)
-    print('Got session number: ' + str(session_number))
+    
+    if session_number is None:
+        print('Could not get associated session number for paper id: ' + str(paper_id) + ' in cycle: ' + str(cycle_name))
+        continue
+
     is_paper = True
     presenter = submission_info["Name of the Presenting Author"]
 
     playlist_row = [video_file, session_number, is_paper, paper_id, cycle_name, presenter]
     playlist_items.append(playlist_row)
+
+    playlist_items_added += 1
     # End for
 
 # Create dataframe containing the playlist data
@@ -86,6 +94,10 @@ out_df = pd.DataFrame(data=playlist_items, columns=['file_name', 'session_number
 
 #Write to UTF-8 csv file
 out_df.to_csv(out_file, index=False, encoding='utf-8')
+
+print ('Finished writing playlist file in ' + os.path.abspath(out_file))
+print('**Results**\n\tSubmissions processed: ' + str(len(submission_data)) + '\n\t' + 'Videos found: ' + str(files_found) + '\n\tPlaylist items created: ' + str(playlist_items_added))
+
 
 
 
