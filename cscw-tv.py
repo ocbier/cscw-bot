@@ -82,7 +82,7 @@ class CSCWManager:
                     next_author = row[column] if column in self.authors_data.columns else None
                     
                     #First author
-                    if j is 2:
+                    if j == 2:
                         message += cur_author
                     # Normal case, after first
                     elif next_author is not None and len(next_author) > 2:
@@ -122,7 +122,7 @@ class CSCWManager:
                 try:
                     message = self.create_paper_message(video.paper)
                     channel_name = Bot.get_valid_name(self.current_session_name, self.current_session_number)
-                    print('Sending presentation announcement to channel: ' + channel_name)
+                    print('Sending presentation announcement to channel: ' + str(channel_name))
                     await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
                 except Exception as ex:
                     print('Error sending video announcement to session channel for paper ' + video.paper.title + 'Reason: ' + str(ex))
@@ -159,13 +159,16 @@ class CSCWManager:
                 # If this is a paper, get the info for the paper
                 if playlist_video["is_paper"]:
                     paper = Paper.get_paper(papers = self.papers_data, id = playlist_video["paper_id"], cycle = playlist_video["cycle"])
-                    paper.presenter_name = playlist_video["presenter_name"]
+                    paper.presenter_name = playlist_video["presenter"]
                 else:
                     print('Not a paper')
 
                 session_videos.append(SessionVideo(session_number, video_path, paper))
 
-
+        # Case for an empty session.
+        if len(session_videos) < 1:
+            return
+            
         session_message = self.create_session_message(session_videos, session_name)
 
         try:
