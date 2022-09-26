@@ -42,6 +42,7 @@ submission_data = pd.read_csv(os.path.join(scheduling_path, 'links.csv'))
 papers_data = pd.read_csv(os.path.join(scheduling_path, 'papers.csv'))
 
 playlist_items = []
+existing_files = []
 
 files_found = 0
 playlist_items_added = 0
@@ -61,6 +62,12 @@ for i, submission_info in submission_data.iterrows():
     pcs_cycle = parts[3].strip()
     paper_id = parts[6].strip()
     video_file = pcs_cycle + '_' + paper_id + '.' + video_suffix
+
+    if video_file in existing_files:
+        print('Ignoring entry for video ' + str(video_file) + 'on row ' + str(i + 1))
+        continue
+
+    existing_files.append(video_file)
 
     # Ensure the video file exists
     if not os.path.isfile(os.path.join(media_path, video_file)):
@@ -96,7 +103,7 @@ out_df = pd.DataFrame(data=playlist_items, columns=['file_name', 'session_number
 out_df.to_csv(out_file, index=False, encoding='utf-8')
 
 print ('Finished writing playlist file in ' + os.path.abspath(out_file))
-print('**Results**\n\tSubmissions processed: ' + str(len(submission_data)) + '\n\t' + 'Videos found: ' + str(files_found) + '\n\tPlaylist items created: ' + str(playlist_items_added))
+print('**Results**\n\tSubmissions processed: ' + str(len(submission_data)) + '\n\t' + 'Unique submissions found: ' + str(len(existing_files)) + '\n\tVideo files found: ' + str(files_found) + '\n\tPlaylist items created: ' + str(playlist_items_added))
 
 
 
