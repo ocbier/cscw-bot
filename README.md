@@ -50,6 +50,9 @@ Video and subtitle files must be included within the '/videos' directory. Video 
  The subtitles should be in a .srt format and must be present in the same directory as videos. Subtitle files must have identical file names to the corresponding video file.
 
 
+# Discord integration
+The system should be integrated with Discord, as described [here](https://discord.com/developers/docs/getting-started). 
+
 ## Settings
 The following settings must be specified in `.env`. This file should not be included in source control, as it includes sensitive data:
 - `TOKEN`: The private Discord bot token. 
