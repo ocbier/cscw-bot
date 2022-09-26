@@ -21,7 +21,7 @@ def map_cycle(cycle):
             name = 'Jan22'
 
         case 'cscw22a':
-            name = 'July21'
+            name = 'Jul21'
 
         case 'cscw22b':
             name = 'jan'
@@ -29,14 +29,12 @@ def map_cycle(cycle):
     return name
 
 def get_session_number(papers, cycle, paper_id):
-
     for i, paper in papers.iterrows():
-        if paper["cycle"] == cycle and paper["paper_id"] == paper_id:
+        if str(paper["cycle"]) == cycle and str(paper["paper_id"]) == paper_id:
             return paper["session_number"]
 
-    return 0
 
-
+    return -1
 
 
 submission_data = pd.read_csv(os.path.join('..', 'scheduling', 'links.csv'))
@@ -44,7 +42,6 @@ papers_data = pd.read_csv(os.path.join('..', 'scheduling', 'papers.csv'))
 
 playlist_items = []
 
-print(submission_data.columns)
 
 for i, submission_info in submission_data.iterrows():
     pcs_url = submission_info["URL of your paper's PCS submission page"]
@@ -75,6 +72,7 @@ for i, submission_info in submission_data.iterrows():
         continue
 
     session_number = get_session_number(papers_data, cycle_name, paper_id)
+    print('Got session number: ' + str(session_number))
     is_paper = True
     presenter = submission_info["Name of the Presenting Author"]
 
