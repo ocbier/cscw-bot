@@ -60,8 +60,8 @@ class Paper :
 
 
 class CSCWManager:
-    def __init__(self, bot_token, tv_channel_id, playlist_file, papers_file, authors_file, media_path, filler_video = ''):
-        self.bot = Bot(bot_token) # Create the bot
+    def __init__(self, bot, tv_channel_id, playlist_file, papers_file, authors_file, media_path, filler_video = ''):
+        self.bot = bot
         self.player = VLCPlayer() # Create the player
         self.tv_channel_id = tv_channel_id
         self.playlist_file = playlist_file
@@ -241,7 +241,11 @@ async def main():
     load_dotenv()
     bot_token = os.getenv('TOKEN')
     live_tv_channel = int(os.getenv('TV_CHANNEL_ID'))
-    manager = CSCWManager(bot_token = bot_token, 
+    guild_id = os.getenv('GUILD_ID')
+
+    bot = Bot(bot_token, guild_id) # Create the bot
+    
+    manager = CSCWManager(bot = bot, 
         tv_channel_id = live_tv_channel,
         playlist_file = playlist_file,
         papers_file = papers_file,

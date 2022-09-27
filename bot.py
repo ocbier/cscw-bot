@@ -5,9 +5,10 @@ from discord.utils import get
 
 class Bot:
 
-    def __init__(self, token):
+    def __init__(self, token, guild_id):
         self.token = token
         self.client = discord.Client(intents=discord.Intents.default())
+        self.guild_id = guild_id
 
 
     async def start(self):
@@ -26,10 +27,18 @@ class Bot:
 
     # Sends a message to a channel with the matching channel name.
     async def send_message_by_name(self, channel_name, message):
+        
+        guild = None
+        for g in self.client.guilds:
+            if g.id == int(self.guild_id):
+                guild = g
+                break
 
-       
-        channel_obj = discord.utils.get(self.client.get_all_channels(), name=channel_name, type=discord.ChannelType.text)
+        print('The guild id' + self.guild_id)
+        if guild == None:
+            raise ChannelNotFoundException('Could not find guild with id: ' + self.guild_id)
 
+        channel_obj = discord.utils.get(self.client.get_all_channels(), guild__id = int(self.guild_id), name=channel_name, type=discord.ChannelType.text)
         if channel_obj is None:
             raise ChannelNotFoundException('Error sending message to channel. Could not get the channel with name ' + channel_name)
         else:
