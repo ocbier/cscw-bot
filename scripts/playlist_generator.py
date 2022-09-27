@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+from os.path import isfile, join
 
 
 media_path = os.path.join('..', 'videos')
@@ -9,101 +10,91 @@ out_file = os.path.join(scheduling_path, 'playlist.csv')
 
   
 
+def get_presentation_info(papers, target_cycle, target_id):
+    for i, paper in papers.iterrows():      
 
-# Maps a URL cycle identifier (e.g., CSCW21d) to a cycle name used internally (e.g., July21)
-def map_cycle(cycle):
-    name = None
+        paper_cycle = paper["cycle"].lower().strip()
+        paper_id = str(paper["paper_id"])
 
-    match cycle:
-        case 'cscw21b': 
-            name = 'jan'
-        
-        case 'cscw21d':
-            name = 'apr'
+        if len(paper_cycle) < 1 or len(paper_id) < 1:
+            continue
 
-        case 'cscw22a':
-            name = 'jul21'
-
-        case 'cscw22b':
-            name = 'jan22'
-    
-    return name
-
-def get_session_number(papers, cycle, paper_id):
-    for i, paper in papers.iterrows():
-        if str(paper["cycle"]).lower() == cycle and str(paper["paper_id"]) == paper_id:
-            return paper["session_number"]
+        if paper_cycle == target_cycle.lower() and paper_id == str(target_id):
+            return {
+                "session_number": paper["session_number"],
+                "talk_number": paper["talk_number"]
+            }
 
 
     return None
 
+# Pre-process data and ensure that numbers are stored as integers.
+papers_data = pd.read_csv(os.path.join(scheduling_path, 'papers.csv')).dropna()
+papers_data['paper_id'] = papers_data['paper_id'].astype(int)
+papers_data['session_number'] = papers_data['session_number'].astype(int)
+papers_data['talk_number'] = papers_data['talk_number'].astype(int)
 
-submission_data = pd.read_csv(os.path.join(scheduling_path, 'links.csv'))
-papers_data = pd.read_csv(os.path.join(scheduling_path, 'papers.csv'))
 
 playlist_items = []
 existing_files = []
 
-files_found = 0
 playlist_items_added = 0
-for i, submission_info in submission_data.iterrows():
-    pcs_url = submission_info["URL of your paper's PCS submission page"]
+files = [f for f in os.listdir(media_path) if isfile(join(media_path, f))]
 
-    # Ensure there is a PCS url
-    if pcs_url is None:
-        print('No PCS URL provided for row ' + str(i + 1))
+for video in files:
+    video_lower = video.lower()
+    parts = str(video_lower).split('_')
+    if len(parts) < 2:
+        print('Invalid file name for file ' + str(video))
         continue
 
-    parts = str(pcs_url).split('/')
-    if len(parts) < 7:
-        print('Invalid PCS URL for row ' + str(i + 1))
-        continue
-
-    pcs_cycle = parts[3].strip()
-    paper_id = parts[6].strip()
-    video_file = pcs_cycle + '_' + paper_id + '.' + video_suffix
-
-    if video_file in existing_files:
-        print('Ignoring entry for video ' + str(video_file) + 'on row ' + str(i + 1))
-        continue
-
-    existing_files.append(video_file)
-
-    # Ensure the video file exists
-    if not os.path.isfile(os.path.join(media_path, video_file)):
-        print('Associated file for PCS URL ' + pcs_url + ' not found. ' + 'Expected: ' + str(os.path.abspath(os.path.join(media_path, video_file))))
+    pcs_cycle = parts[0]
+    second = parts[1].split('.')
+    
+    if not second[1] == video_suffix:
         continue
     
-    files_found += 1
-    cycle_name = map_cycle(pcs_cycle)
-
-    if cycle_name is None:
-        print('Invalid cycle name for row ' + str(i + 1))
+    if len(pcs_cycle) < 5:
+        print('Invalid cycle name ' + str(pcs_cycle))
         continue
 
-    session_number = get_session_number(papers_data, cycle_name, paper_id)
+    paper_id = second[0]
+
+    if len(paper_id) == 0:
+        print('Invalid paper id ' + str(paper_id))
+        continue
+
+    if video in existing_files:
+        print('Ignoring entry for video ' + str(video))
+        continue
+
+    existing_files.append(video_lower)
     
-    if session_number is None:
-        print('Could not get associated session number for paper id: ' + str(paper_id) + ' in cycle: ' + str(cycle_name))
+    presentation_info = get_presentation_info(papers_data, pcs_cycle, paper_id)
+    
+    if presentation_info is None:
+        print('Could not get associated session number for paper id: ' + str(paper_id) + ' in cycle: ' + str(pcs_cycle))
         continue
 
     is_paper = True
-    presenter = submission_info["Name of the Presenting Author"]
-
-    playlist_row = [video_file, session_number, is_paper, paper_id, cycle_name, presenter]
+    
+    playlist_row = [video, presentation_info["session_number"], is_paper, paper_id, pcs_cycle, presentation_info["talk_number"]]
     playlist_items.append(playlist_row)
 
     playlist_items_added += 1
     # End for
 
 # Create dataframe containing the playlist data
-out_df = pd.DataFrame(data=playlist_items, columns=['file_name', 'session_number', 'is_paper', 'paper_id', 'cycle', 'presenter'])
+out_df = pd.DataFrame(data=playlist_items, columns=['file_name', 'session_number', 'is_paper', 'paper_id', 'cycle', 'talk_number'])
+
+
+out_df.sort_values(['session_number', 'talk_number'])
 
 #Write to UTF-8 csv file
 out_df.to_csv(out_file, index=False, encoding='utf-8')
 
 print ('Finished writing playlist file in ' + os.path.abspath(out_file))
-print('**Results**\n\tSubmissions processed: ' + str(len(submission_data)) + '\n\t' + 'Unique submissions found: ' + str(len(existing_files)) + '\n\tVideo files found: ' + str(files_found) + '\n\tPlaylist items created: ' + str(playlist_items_added))
+print('**Results**\n\tSubmissions processed: ' + str(len(files)) + '\n\t' + 'Unique submissions found: ' + str(len(existing_files)) + '\n\tPlaylist items created: ' + str(playlist_items_added))
 
 
 

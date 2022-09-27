@@ -41,7 +41,7 @@ The following are required .csv files which must be present in the 'scheduling' 
 
 
 ## Generating the playlist file
-For convenience, a playlist generator script (`playlist_generator.py`) is included within '/scripts'. This script writes a `playlist.csv` file to '/scheduling' with the required format. Requires `papers.csv` for paper data. Also requires submission info in `links.csv` (also contained in '/scheduling') to map submissions to papers. Also checks whether the required video files are present in '/videos'. 
+For convenience, a playlist generator script (`playlist_generator.py`) is included within '/scripts'. This script writes a `playlist.csv` file to '/scheduling' with the required format for all paper presentations. Requires `papers.csv` for paper data. Also checks whether the required video files are present in '/videos'.
 
 
 # Video and Subtitle Files
@@ -51,7 +51,7 @@ Video and subtitle files must be included within the '/videos' directory. Video 
 
 
 # Discord integration
-The system should be integrated with Discord, as described [here](https://discord.com/developers/docs/getting-started). 
+The system should be integrated with Discord, as described [here](https://discord.com/developers/docs/getting-started). One important point is that the bot  assumes that Discord channel names for each session will match the session names and have a numeric index. Therefore, each session channel should have the following format: **##-session-name-pieces**. Channel indices < 10 should be preceeded by a 0. 
 
 ## Settings
 The following settings must be specified in `.env`. This file should not be included in source control, as it includes sensitive data:

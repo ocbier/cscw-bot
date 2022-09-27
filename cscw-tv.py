@@ -33,9 +33,30 @@ class Paper :
     def get_paper (papers, cycle, id):
         for i, paper in papers.iterrows():
             paper_cycle = paper["cycle"].lower()
-            if paper_cycle == cycle.lower() and paper["paper_id"] == id:
-                return Paper(title = paper["title"], cycle = paper_cycle, id = paper["paper_id"], talk_number = paper["talk_number"])
+            paper_id = int(paper["paper_id"])
+            if paper_cycle == cycle.lower() and paper_id == int(id):
+                return Paper(title = paper["title"], 
+                cycle = paper_cycle, 
+                id = paper_id, 
+                talk_number = paper["talk_number"],
+                presenter = paper["presenter"])
 
+    # Maps a URL cycle identifier (e.g., CSCW21d) to a cycle name used internally (e.g., July21)
+    @staticmethod
+    def map_cycle(cycle):
+        name = None
+
+        match cycle:
+            case 'cscw21b': 
+                name = 'jan'    
+            case 'cscw21d':
+                name = 'apr'
+            case 'cscw22a':
+                name = 'jul21'
+            case 'cscw22b':
+                name = 'jan22'
+        
+        return name
 
 
 class CSCWManager:
@@ -74,7 +95,10 @@ class CSCWManager:
 
         j = 1
         for i, row in self.authors_data.iterrows():
-            if row["cycle"].lower() == paper.cycle and row["id"] == paper.id:
+
+            mapped_cycle = Paper.map_cycle(paper.cycle) # Map the cycle to the internal cycles used in the authors list
+
+            if row["cycle"].lower() == mapped_cycle and int(row["id"]) == paper.id:
                 column = "author_" + str(j)
                 next_author = str(row[column]).strip() if column in self.authors_data.columns else None
                 while next_author is not None and len(next_author) > 2:
@@ -92,8 +116,6 @@ class CSCWManager:
                     # This is the last author
                     else:
                         message += ' and ' + cur_author
-
-
 
         message.strip().replace('\n', '')
         if len(message) > 2:
@@ -162,14 +184,13 @@ class CSCWManager:
         session_videos = []
 
         for i, playlist_video in playlist_data.iterrows():
-            if playlist_video["session_number"] == session_number:
+            if int(playlist_video["session_number"]) == int(session_number):
                 paper = None
                 video_path = os.path.join(self.media_path, playlist_video["file_name"])
 
                 # If this is a paper, get the info for the paper
                 if playlist_video["is_paper"]:
                     paper = Paper.get_paper(papers = self.papers_data, id = playlist_video["paper_id"], cycle = playlist_video["cycle"])
-                    paper.presenter = playlist_video["presenter"]
                 else:
                     print('Not a paper')
 
