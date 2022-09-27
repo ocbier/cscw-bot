@@ -51,9 +51,10 @@ Video and subtitle files must be included within the '/videos' directory. Video 
 
 
 # Discord integration
-The system should be integrated with Discord, as described [here](https://discord.com/developers/docs/getting-started). One important point is that the bot  assumes that Discord channel names for each session will match the session names and have a numeric index. Therefore, each session channel should have the following format: **##-session-name-pieces**. Channel indices < 10 should be preceeded by a 0. 
+The system should be integrated with Discord, as described [here](https://discord.com/developers/docs/getting-started). One important point is that the bot  assumes that Discord channel names for each session will match the session names and have a numeric index. Therefore, each session channel should have the following format: **##-session-name-pieces**. All channel indices < 10 should be preceeded by a 0. 
 
 ## Settings
 The following settings must be specified in `.env`. This file should not be included in source control, as it includes sensitive data:
 - `TOKEN`: The private Discord bot token. 
 - `TV_CHANNEL_ID`: The ID of the Discord channel where announcements about session will be sent when the session starts.
+- `GUILD_ID`: The ID of the guild in which the bot should send announcements.
