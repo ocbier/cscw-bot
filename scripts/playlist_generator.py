@@ -94,7 +94,7 @@ out_df.sort_values(['session_number', 'talk_number'])
 out_df.to_csv(out_file, index=False, encoding='utf-8')
 
 print ('Finished writing playlist file in ' + os.path.abspath(out_file))
-print('**Results**\n\tSubmissions processed: ' + str(len(files)) + '\n\t' + 'Unique submissions found: ' + str(len(existing_files)) + '\n\tPlaylist items created: ' + str(playlist_items_added))
+print('**Results**\n\tTotal files processed: ' + str(len(files)) + '\n\t' + 'Valid video files found: ' + str(len(existing_files)) + '\n\tPlaylist items created: ' + str(playlist_items_added))
 
 
 

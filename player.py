@@ -3,7 +3,7 @@ import vlc, time
 class VLCPlayer:
 
     def __init__(self):
-        self.vlc_instance = vlc.Instance('--input-repeat=-1', '--mouse-hide-timeout=0')
+        self.vlc_instance = vlc.Instance('--input-repeat=-1', '--mouse-hide-timeout=0', '--freetype-font=Verdana', '--freetype-rel-fontsize=22')
         self.player = self.vlc_instance.media_player_new()
 
 
