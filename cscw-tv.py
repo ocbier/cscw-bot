@@ -1,4 +1,5 @@
 import asyncio, os, time
+import sys
 import json
 import pandas as pd
 from pytz import utc
@@ -10,6 +11,9 @@ from player import VLCPlayer
 from bot import Bot
 from data import SessionVideo, Paper
 from dotenv import load_dotenv
+import signal
+
+
 
 
 class PlaybackStatus:
@@ -235,10 +239,15 @@ class CSCWManager:
         self.play_filler()
       
         
+def handler(signum, frame):
+    print('Terminating bot...', signum)
+    sys.exit()
 
     
 # Overall approach: Schedule all the video playlists to play for each session start time in both weeks and play the video(s) for each session in playlists. Ensure that all start times are in UTC and that the clock used is UTC. Iterate over each session row (indexed by #) in the time table and schedule the videos for each session in both weeks. Lookup the corresponding data for each session in session_data.
 async def main():
+    signal.signal(signal.SIGINT, handler) # Allow exit which kills all current coroutines.
+
     media_path = 'videos'
     scheduling_path = 'scheduling'
     status_file = os.path.join('.', 'status.json')
@@ -308,7 +317,7 @@ async def main():
     print('Starting Discord bot. Please keep this script running.')
     try:
         await manager.bot.start()
-    except BaseException as ex:
+    except Exception as ex:
         print('Bot failed to start. ' + str(ex))
 
   
