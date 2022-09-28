@@ -1,85 +1,76 @@
 import asyncio, os, time
+import json
 import pandas as pd
 from pytz import utc
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dateutil import parser
-from datetime import timezone
+from datetime import datetime, timezone, timedelta
 from exceptions import ChannelNotFoundException
 from player import VLCPlayer
 from bot import Bot
+from data import SessionVideo, Paper
 from dotenv import load_dotenv
 
 
-
-class SessionVideo:
-    def __init__(self, session_number, video_path, paper = None):
+class PlaybackStatus:
+    def __init__(self, session_name, session_number, playback_number):
+        self.session_name = session_name
         self.session_number = session_number
-        self.video_path = video_path
-        self.paper = paper
-
-    def is_paper(self):
-        return self.paper is not None
-
-
-class Paper :
-    def __init__(self, title, id, cycle, talk_number, presenter = None): 
-        self.title = title
-        self.id = id
-        self.cycle = cycle
-        self.talk_number = talk_number
-        self.presenter = presenter
-
-    @staticmethod
-    def get_paper (papers, cycle, id):
-        for i, paper in papers.iterrows():
-            paper_cycle = paper["cycle"].lower()
-            paper_id = int(paper["paper_id"])
-            if paper_cycle == cycle.lower() and paper_id == int(id):
-                return Paper(title = paper["title"], 
-                cycle = paper_cycle, 
-                id = paper_id, 
-                talk_number = paper["talk_number"],
-                presenter = paper["presenter"])
-
-    # Maps a URL cycle identifier (e.g., CSCW21d) to a cycle name used internally (e.g., July21)
-    @staticmethod
-    def map_cycle(cycle):
-        name = None
-
-        match cycle:
-            case 'cscw21b': 
-                name = 'jan'    
-            case 'cscw21d':
-                name = 'apr'
-            case 'cscw22a':
-                name = 'jul21'
-            case 'cscw22b':
-                name = 'jan22'
+        self.playback_number = playback_number
         
-        return name
-
 
 class CSCWManager:
-    def __init__(self, bot, tv_channel_id, playlist_file, papers_file, authors_file, media_path, filler_video = ''):
+    def __init__(self, 
+             bot, 
+             tv_channel_id, 
+             playlist_file, 
+             papers_file, 
+             authors_file, 
+             media_path, 
+             status_file = 'status.json',
+             filler_video = ''):
         self.bot = bot
         self.player = VLCPlayer() # Create the player
         self.tv_channel_id = tv_channel_id
         self.playlist_file = playlist_file
         self.media_path = media_path
+        self.status_file = status_file
         self.filler_video = filler_video
 
-        self.current_session_name = 'Idle'
-        self.current_session_number = -1
+        self.playback_status = PlaybackStatus(session_name = 'Idle', session_number=0, playback_number=0)
 
         self.papers_data = pd.read_csv(papers_file).fillna('')
         self.authors_data = pd.read_csv(authors_file).fillna('')
     
-    # obsolete
-    def sort_papers(self, paper):
-        return paper.talk_number
+   
 
-    def create_session_message(self, session_videos, session_name):
-        message = 'The session ' + session_name + ' is about to start!\n\nThe following papers will be presented:'
+
+    def save_playback_status(self):
+        out = { 
+            "session_name": self.playback_status.session_name,
+            "session_number": self.playback_status.session_number, 
+            "playback_number": self.playback_status.playback_number
+        }
+        
+        with open(self.status_file, "w") as outfile:
+            json.dump(out, outfile)
+
+
+    def load_playback_status(self):
+        if not os.path.isfile(self.status_file):
+            print('Cannot load status file. Play status unchanged.')
+            return
+
+        with open(self.status_file, 'r') as openfile:
+            status_dict = json.load(openfile)
+
+        self.playback_status.session_name = status_dict["session_name"]
+        self.playback_status.session_number = status_dict["session_number"]
+        self.playback_status.playback_number = status_dict["playback_number"]
+
+
+    def create_session_message(self, session_videos):
+        message = 'The session ' + self.playback_status.session_name + ' is about to start!\n\nThe following papers will be presented:'
 
         # Add titles to the announcement message
         count = 0 
@@ -142,26 +133,36 @@ class CSCWManager:
         if self.filler_video != '':
                 try:      
                     self.player.play_video(self.filler_video)
-                except:
+                except Exception as ex:
                     print('Error playing the filler video') 
 
 
     # Sends messages to session channel (before playback) for each video that is a paper presenation and then plays all session videos.
     async def broadcast_session(self, session_videos):
         for video in session_videos:
+            #Only play the video with correct playback number. This is needed for cases where playback has restarted after first video.
+            if not video.play_order == self.playback_status.playback_number:
+                continue
+
             #Announce the video in the session channel, if it is a paper presentation
             if video.is_paper():
                 try:
                     message = self.create_paper_message(video.paper)
-                    channel_name = Bot.get_valid_name(self.current_session_name, self.current_session_number)
+                    channel_name = Bot.get_valid_name(self.playback_status.session_name, self.playback_status.session_number)
                     print('Sending presentation announcement to channel: ' + str(channel_name))
-                    await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
+                    #await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
                 except Exception as ex:
                     print('Error sending video announcement to session channel for paper ' + video.paper.title + 'Reason: ' + str(ex))
             else:
                 print('Not a paper presentation. No announcement sent.')
+            
             try:
-                print('Now playing: ' + video.video_path)
+                print('Now playing video # ' + str(video.play_order) + ': ' + video.video_path)
+
+                # Save the playback status to file.
+                self.playback_status.playback_number = video.play_order
+                self.save_playback_status()
+
                 self.player.play_video(video.video_path)
                 time.sleep(1)
 
@@ -169,15 +170,22 @@ class CSCWManager:
                     if not self.player.is_playing():
                         break
                     continue
-            except:
-                print('Error playing video ' + video.video_path)
 
-      
+                self.playback_status.playback_number += 1 
             
+            except Exception as ex:
+                print('Error playing video ' + video.video_path + 'Reason: ' + str(ex))
+
+        self.playback_status.session_name = 'idle'
+        self.playback_status.session_number = 0
+        self.playback_status.playback_number = 0
+
+        self.save_playback_status()
+
 
     # Sends message to the main session channel for the session and then broadcast it. Reads the playlist and papers data from file
     # at the beginning of each session, to allow for the user to change playlist or paper info, any time before the session starts.
-    async def start_session (self, session_number, session_name, filler_video = ''):
+    async def start_session (self, session_number, session_name, play_number = 0, filler_video = ''):
         
         playlist_data = pd.read_csv(self.playlist_file).fillna('')
 
@@ -194,29 +202,34 @@ class CSCWManager:
                 else:
                     print('Not a paper')
 
-                session_videos.append(SessionVideo(session_number, video_path, paper))
+                session_videos.append(SessionVideo(session_number = session_number, 
+                    video_path = video_path, 
+                    play_order = (int)(playlist_video["play_order"]),
+                    paper = paper))
 
-        # Case for an empty session.
-        if len(session_videos) < 1:
-            return
+       
+        # Update the current session name and number
+        self.playback_status.session_name = session_name
+        self.playback_status.session_number = session_number
+        self.playback_status.playback_number = play_number
 
-        session_message = self.create_session_message(session_videos, session_name)
+        # If the session is starting from the first video and there are videos to play, send an announcement.
+        if self.playback_status.playback_number == 0 and len(session_videos) > 0:
+            session_message = self.create_session_message(session_videos)
+            try:
+                print("Sending announcement for start of session: " + self.playback_status.session_name)
+                #await self.bot.send_message(self.tv_channel_id, session_message)
+            except Exception as ex:
+                print('Sending session message failed for session "' + str(session_number) + '. ' + str(session_name) +'" Reason: ' + str(ex))
 
-        try:
-            await self.bot.send_message(self.tv_channel_id, session_message)
-        except Exception as ex:
-            print('Sending session message failed for session "' + str(session_number) + '. ' + str(session_name) +'" Reason: ' + str(ex))
+            # Set to 1 to enable first video in session to begin
+            self.playback_status.playback_number = 1 
+            self.save_playback_status()
 
-        try:
-            # Update the current session name and number
-            self.current_session_name = session_name
-            self.current_session_number = session_number
+        try:  
             await self.broadcast_session(session_videos)               
-        except:
-            print('Broadcasting session failed for session ' + str(session_number) + '. ' + str(session_name))
-
-        self.current_session_name = 'idle'
-        self.current_session_number = -1
+        except Exception as ex:
+            print('Broadcasting session failed for session ' + str(session_number) + '. ' + str(session_name) +'. Reason: ' +str(ex))
 
         # Play a filler video after session
         self.play_filler()
@@ -228,6 +241,7 @@ class CSCWManager:
 async def main():
     media_path = 'videos'
     scheduling_path = 'scheduling'
+    status_file = os.path.join('.', 'status.json')
     playlist_file = os.path.join(scheduling_path, 'playlist.csv')
     papers_file = os.path.join(scheduling_path, 'papers.csv')
     authors_file = os.path.join(scheduling_path, 'authors.csv')
@@ -251,14 +265,14 @@ async def main():
         papers_file = papers_file,
         authors_file = authors_file,
         media_path = media_path,
+        status_file = status_file,
         filler_video = filler_video)
 
-    
+    manager.load_playback_status()
 
     print ('Scheduling sessions...')
     for i, session_row in timetable_data.iterrows():
         
-    
         # Schedule the session to be broadcast at the correct time for both week 1 and week 2
         try:
             w1_time = parser.parse(session_row["w1_time_utc"]).replace(tzinfo=timezone.utc)# Get the datetime for week 1 as utc
@@ -276,9 +290,20 @@ async def main():
             'session_name': session_row["session_name"],
             })
 
+        #If there is an incomplete session, schedule that session to restart at the correct playback number
+        if manager.playback_status.playback_number > 0:
+            resume_time = datetime.now(timezone.utc) + timedelta(seconds=10)
+            print(resume_time)
+            scheduler.add_job(manager.start_session, 'date', run_date=resume_time, kwargs = {
+                    'session_number': manager.playback_status.session_number,
+                    'session_name': manager.playback_status.session_name,
+                    'play_number': manager.playback_status.playback_number
+                    })
+
     scheduler.start()
     print("Scheduling complete.")
     
+    # Play filler video to start
     manager.play_filler()
       
     print('Starting Discord bot. Please keep this script running.')

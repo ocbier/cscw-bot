@@ -84,11 +84,16 @@ for video in files:
     playlist_items_added += 1
     # End for
 
+    
+
+
+
 # Create dataframe containing the playlist data
-out_df = pd.DataFrame(data=playlist_items, columns=['file_name', 'session_number', 'is_paper', 'paper_id', 'cycle', 'talk_number'])
+out_df = pd.DataFrame(data=playlist_items, columns=['file_name', 'session_number', 'is_paper', 'paper_id', 'cycle', 'play_order'])
 
 
-out_df.sort_values(['session_number', 'talk_number'])
+
+out_df.sort_values(['session_number', 'play_order'])
 
 #Write to UTF-8 csv file
 out_df.to_csv(out_file, index=False, encoding='utf-8')
