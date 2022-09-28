@@ -293,7 +293,6 @@ async def main():
         #If there is an incomplete session, schedule that session to restart at the correct playback number
         if manager.playback_status.playback_number > 0:
             resume_time = datetime.now(timezone.utc) + timedelta(seconds=10)
-            print(resume_time)
             scheduler.add_job(manager.start_session, 'date', run_date=resume_time, kwargs = {
                     'session_number': manager.playback_status.session_number,
                     'session_name': manager.playback_status.session_name,
