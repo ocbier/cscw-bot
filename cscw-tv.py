@@ -12,8 +12,7 @@ from bot import Bot
 from data import SessionVideo, Paper
 from dotenv import load_dotenv
 import signal
-
-
+from apscheduler.events import EVENT_JOB_ERROR
 
 
 class PlaybackStatus:
@@ -154,7 +153,7 @@ class CSCWManager:
                     message = self.create_paper_message(video.paper)
                     channel_name = Bot.get_valid_name(self.playback_status.session_name, self.playback_status.session_number)
                     print('Sending presentation announcement to channel: ' + str(channel_name))
-                    await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
+                    #await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
                 except Exception as ex:
                     print('Error sending video announcement to session channel for paper ' + video.paper.title + 'Reason: ' + str(ex))
             else:
@@ -190,7 +189,6 @@ class CSCWManager:
     # Sends message to the main session channel for the session and then broadcast it. Reads the playlist and papers data from file
     # at the beginning of each session, to allow for the user to change playlist or paper info, any time before the session starts.
     async def start_session (self, session_number, session_name, play_number = 0, filler_video = ''):
-        
         playlist_data = pd.read_csv(self.playlist_file).fillna('')
 
         session_videos = []
@@ -222,7 +220,7 @@ class CSCWManager:
             session_message = self.create_session_message(session_videos)
             try:
                 print("Sending announcement for start of session: " + self.playback_status.session_name)
-                await self.bot.send_message(self.tv_channel_id, session_message)
+                # await self.bot.send_message(self.tv_channel_id, session_message)
             except Exception as ex:
                 print('Sending session message failed for session "' + str(session_number) + '. ' + str(session_name) +'" Reason: ' + str(ex))
 
@@ -238,16 +236,19 @@ class CSCWManager:
         # Play a filler video after session
         self.play_filler()
       
-        
-def handler(signum, frame):
-    print('Terminating bot...', signum)
-    sys.exit()
 
-    
+
+
+
+scheduler = AsyncIOScheduler(timezone=utc)
+
+def error_listener(event):
+    print('Bot is stopping. ' + str(event))
+    scheduler.shutdown(wait=False)
+    os._exit(1)
+
 # Overall approach: Schedule all the video playlists to play for each session start time in both weeks and play the video(s) for each session in playlists. Ensure that all start times are in UTC and that the clock used is UTC. Iterate over each session row (indexed by #) in the time table and schedule the videos for each session in both weeks. Lookup the corresponding data for each session in session_data.
 async def main():
-    signal.signal(signal.SIGINT, handler) # Allow exit which kills all current coroutines.
-
     media_path = 'videos'
     scheduling_path = 'scheduling'
     status_file = os.path.join('.', 'status.json')
@@ -259,7 +260,6 @@ async def main():
 
     
     timetable_data = pd.read_csv(sessions_file)
-    scheduler = AsyncIOScheduler(timezone=utc)
 
     load_dotenv()
     bot_token = os.getenv('TOKEN')
@@ -308,20 +308,21 @@ async def main():
                     'play_number': manager.playback_status.playback_number
                     })
 
-    scheduler.start()
-    print("Scheduling complete.")
-    
-    # Play filler video to start
-    manager.play_filler()
-      
-    print('Starting Discord bot. Please keep this script running.')
-    try:
-        await manager.bot.start()
-    except Exception as ex:
-        print('Bot failed to start. ' + str(ex))
 
-  
-    
+        scheduler.add_listener(error_listener, EVENT_JOB_ERROR)
+        scheduler.start()
+        print("Scheduling complete.")
+                
+        # Play filler video to start
+        manager.play_filler()
+                
+        print('Starting Discord bot. Please keep this script running.')
+            
+        await manager.bot.start()
+           
+        
+   
+
 
 asyncio.run(main()) # Start the app
 
