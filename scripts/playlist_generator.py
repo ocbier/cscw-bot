@@ -91,9 +91,8 @@ for video in files:
 # Create dataframe containing the playlist data
 out_df = pd.DataFrame(data=playlist_items, columns=['file_name', 'session_number', 'is_paper', 'paper_id', 'cycle', 'play_order'])
 
-
-
-out_df.sort_values(['session_number', 'play_order'])
+# Ensure that playlist items are sorted first by sessio number and then by play order within session.
+out_df.sort_values(['session_number', 'play_order'], inplace=True)
 
 #Write to UTF-8 csv file
 out_df.to_csv(out_file, index=False, encoding='utf-8')

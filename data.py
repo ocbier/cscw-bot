@@ -5,10 +5,13 @@ class SessionVideo:
         self.play_order = play_order
         self.paper = paper
         
-
-
     def is_paper(self):
         return self.paper is not None
+    
+    @staticmethod
+    def sort_video(video):
+        return video.play_order
+
 
 
 class Paper :

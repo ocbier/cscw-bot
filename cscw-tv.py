@@ -211,7 +211,9 @@ class CSCWManager:
                     play_order = (int)(playlist_video["play_order"]),
                     paper = paper))
 
-       
+        # Ensure that videos are sorted by play order
+        session_videos.sort(key=SessionVideo.sort_video)
+
         # Update the current session name and number
         self.playback_status.session_name = session_name
         self.playback_status.session_number = session_number
