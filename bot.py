@@ -29,7 +29,7 @@ class Bot:
     # Sends a message to a channel with the matching channel name. Append '-test' if in test mode.
     async def send_message_by_name(self, channel_name, message):
         target = channel_name if not self.test_mode else channel_name + '-test'
-        channel_obj = discord.utils.get(self.client.get_all_channels(), guild__id = int(self.guild_id), name=channel_name, type=discord.ChannelType.text)
+        channel_obj = discord.utils.get(self.client.get_all_channels(), guild__id = int(self.guild_id), name=target, type=discord.ChannelType.text)
         if channel_obj is None:
             raise ChannelNotFoundException('Error sending message to channel. Could not get the channel with name ' + channel_name)
         else:
