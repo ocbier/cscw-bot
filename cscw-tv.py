@@ -154,7 +154,7 @@ class CSCWManager:
                     message = self.create_paper_message(video.paper)
                     channel_name = Bot.get_valid_name(self.playback_status.session_name, self.playback_status.session_number)
                     print('Sending presentation announcement to channel: ' + str(channel_name))
-                    #await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
+                    await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
                 except Exception as ex:
                     print('Error sending video announcement to session channel for paper ' + video.paper.title + 'Reason: ' + str(ex))
             else:
@@ -221,7 +221,7 @@ class CSCWManager:
             session_message = self.create_session_message(session_videos)
             try:
                 print("Sending announcement for start of session: " + self.playback_status.session_name)
-                # await self.bot.send_message(self.tv_channel_id, session_message)
+                await self.bot.send_message(self.tv_channel_id, session_message)
             except Exception as ex:
                 print('Sending session message failed for session "' + str(session_number) + '. ' + str(session_name) +'" Reason: ' + str(ex))
 
