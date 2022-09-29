@@ -143,7 +143,8 @@ class CSCWManager:
 
     # Sends messages to session channel (before playback) for each video that is a paper presenation and then plays all session videos.
     async def broadcast_session(self, session_videos):
-        for video in session_videos:
+
+        for i, video in enumerate(session_videos):
             #Only play the video with correct playback number. This is needed for cases where playback has restarted after first video.
             if not video.play_order == self.playback_status.playback_number:
                 continue
@@ -174,8 +175,9 @@ class CSCWManager:
                     if not self.player.is_playing():
                         break
                     continue
-
-                self.playback_status.playback_number += 1 
+                
+                if (i + 1) < len(session_videos):
+                    self.playback_status.playback_number = session_videos[i + 1].play_order
             
             except Exception as ex:
                 print('Error playing video ' + video.video_path + 'Reason: ' + str(ex))
@@ -229,7 +231,7 @@ class CSCWManager:
                 print('Sending session message failed for session "' + str(session_number) + '. ' + str(session_name) +'" Reason: ' + str(ex))
 
             # Set to 1 to enable first video in session to begin
-            self.playback_status.playback_number = 1 
+            self.playback_status.playback_number = session_videos[0].play_order
             self.save_playback_status()
 
         try:  
