@@ -1,17 +1,18 @@
+import argparse
 import asyncio, os, time
 import sys
 import json
+from xmlrpc.client import Boolean
 import pandas as pd
 from pytz import utc
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from dateutil import parser
+from dateutil import parser as date_parser
 from datetime import datetime, timezone, timedelta
 from exceptions import ChannelNotFoundException
 from player import VLCPlayer
 from bot import Bot
 from data import SessionVideo, Paper
 from dotenv import load_dotenv
-import signal
 from apscheduler.events import EVENT_JOB_ERROR
 
 
@@ -22,6 +23,7 @@ class PlaybackStatus:
         self.playback_number = playback_number
         
 
+# Handles playback of scheduled videos and persists playback status.
 class CSCWManager:
     def __init__(self, 
              bot, 
@@ -31,9 +33,10 @@ class CSCWManager:
              authors_file, 
              media_path, 
              status_file = 'status.json',
-             filler_video = ''):
+             filler_video = '',
+             test_mode = False):
         self.bot = bot
-        self.player = VLCPlayer() # Create the player
+        self.player = VLCPlayer(test_mode) # Create the player
         self.tv_channel_id = tv_channel_id
         self.playlist_file = playlist_file
         self.media_path = media_path
@@ -45,8 +48,6 @@ class CSCWManager:
         self.papers_data = pd.read_csv(papers_file).fillna('')
         self.authors_data = pd.read_csv(authors_file).fillna('')
     
-   
-
 
     def save_playback_status(self):
         out = { 
@@ -258,15 +259,23 @@ async def main():
     sessions_file = os.path.join(scheduling_path, 'sessions.csv')
     filler_video = os.path.join(media_path, 'cscw_filler.mp4')
 
-    
     timetable_data = pd.read_csv(sessions_file)
 
+    #Set up the command-line argument for test mode
+    args_parser = argparse.ArgumentParser()
+    args_parser.add_argument('-t', '--test', help='Test mode active. Defaults to false', default = False, type=bool)
+    args = args_parser.parse_args()
+
+    if args.test:
+        print('***Running bot in test mode***')
+
+    # Load configuration file
     load_dotenv()
     bot_token = os.getenv('TOKEN')
     live_tv_channel = int(os.getenv('TV_CHANNEL_ID'))
     guild_id = os.getenv('GUILD_ID')
 
-    bot = Bot(bot_token, guild_id) # Create the bot
+    bot = Bot(bot_token, guild_id, test_mode = args.test) # Create the bot
     
     manager = CSCWManager(bot = bot, 
         tv_channel_id = live_tv_channel,
@@ -275,7 +284,8 @@ async def main():
         authors_file = authors_file,
         media_path = media_path,
         status_file = status_file,
-        filler_video = filler_video)
+        filler_video = filler_video,
+        test_mode = args.test)
 
     manager.load_playback_status()
 
@@ -284,8 +294,8 @@ async def main():
         
         # Schedule the session to be broadcast at the correct time for both week 1 and week 2
         try:
-            w1_time = parser.parse(session_row["w1_time_utc"]).replace(tzinfo=timezone.utc)# Get the datetime for week 1 as utc
-            w2_time = parser.parse(session_row["w2_time_utc"]).replace(tzinfo=timezone.utc)# Get the datetime for week 2 as utc
+            w1_time = date_parser.parse(session_row["w1_time_utc"]).replace(tzinfo=timezone.utc)# Get the datetime for week 1 as utc
+            w2_time = date_parser.parse(session_row["w2_time_utc"]).replace(tzinfo=timezone.utc)# Get the datetime for week 2 as utc
         except Exception as ex:
             print('Could not parse date for row ' + str(i+2) + ' in file ' + sessions_file + '. Reason: ' + str(ex))
             continue

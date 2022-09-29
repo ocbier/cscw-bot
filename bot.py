@@ -5,10 +5,11 @@ from discord.utils import get
 
 class Bot:
 
-    def __init__(self, token, guild_id):
+    def __init__(self, token, guild_id, test_mode = False):
         self.token = token
         self.client = discord.Client(intents=discord.Intents.default())
         self.guild_id = guild_id
+        self.test_mode = test_mode
 
 
     async def start(self):
@@ -25,8 +26,9 @@ class Bot:
             await channel_obj.send(message)
 
 
-    # Sends a message to a channel with the matching channel name.
+    # Sends a message to a channel with the matching channel name. Append '-test' if in test mode.
     async def send_message_by_name(self, channel_name, message):
+        target = channel_name if not self.test_mode else channel_name + '-test'
         channel_obj = discord.utils.get(self.client.get_all_channels(), guild__id = int(self.guild_id), name=channel_name, type=discord.ChannelType.text)
         if channel_obj is None:
             raise ChannelNotFoundException('Error sending message to channel. Could not get the channel with name ' + channel_name)
