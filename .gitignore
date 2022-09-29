@@ -133,3 +133,6 @@ videos/
 
 #Scheduling data, some confidential
 scheduling/
+
+#Local status file
+status.json
