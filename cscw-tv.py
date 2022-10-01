@@ -155,7 +155,7 @@ class CSCWManager:
                     message = self.create_paper_message(video.paper)
                     channel_name = Bot.get_valid_name(self.playback_status.session_name, self.playback_status.session_number)
                     print('Sending presentation announcement to channel: ' + str(channel_name))
-                    # await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
+                    await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
                 except Exception as ex:
                     print('Error sending video announcement to session channel for paper ' + video.paper.title + 'Reason: ' + str(ex))
             else:
@@ -226,7 +226,7 @@ class CSCWManager:
             session_message = self.create_session_message(session_videos)
             try:
                 print("Sending announcement for start of session: " + self.playback_status.session_name)
-                # await self.bot.send_message(self.tv_channel_id, session_message)
+                await self.bot.send_message(self.tv_channel_id, session_message)
             except Exception as ex:
                 print('Sending session message failed for session "' + str(session_number) + '. ' + str(session_name) +'" Reason: ' + str(ex))
 
@@ -290,7 +290,7 @@ class CSCWSchedulingHandler:
         play_number = 0):
             delimiter = CSCWSchedulingHandler.DELIMITER
             return self.scheduler.add_job(self.manager.start_session, 'date', 
-                    id = str(session_number) + delimiter + session_name + delimiter + str(time),
+                    id = str(session_number) + delimiter + str(session_name) + delimiter + str(time),
                     run_date=time, 
                     kwargs = {
                     'session_number': session_number,
@@ -374,6 +374,7 @@ async def main():
         
         # Add session time for week 1 but first check if time is later than right now
         if w1_time > datetime.now(time_zone):
+            print('Scheduling session '+ str(session_row["session_number"]) + '. ' + str(session_row["session_name"]) +' for week 1. Time: ' + str(w1_time))
             scheduler.add_session(
             time=w1_time, 
             session_number = session_row["session_number"],
@@ -383,6 +384,7 @@ async def main():
 
         # Add session time for week 2, apply same check as for week 1
         if w2_time > datetime.now(time_zone):
+            print('Scheduling session '+ str(session_row["session_number"]) + '. ' + str(session_row["session_name"]) +' for week 2. Time: ' + str(w1_time))
             scheduler.add_session(
             time=w2_time, 
             session_number = session_row["session_number"],
