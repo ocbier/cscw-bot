@@ -1,6 +1,6 @@
 import argparse
 import asyncio, os, time
-import sys
+import apscheduler.events
 import json
 from xmlrpc.client import Boolean
 import pandas as pd
@@ -13,7 +13,7 @@ from player import VLCPlayer
 from bot import Bot
 from data import SessionVideo, Paper
 from dotenv import load_dotenv
-from apscheduler.events import EVENT_JOB_ERROR
+
 
 
 class PlaybackStatus:
@@ -48,7 +48,7 @@ class CSCWManager:
         self.papers_data = pd.read_csv(papers_file).fillna('')
         self.authors_data = pd.read_csv(authors_file).fillna('')
     
-
+    
     def save_playback_status(self):
         out = { 
             "session_name": self.playback_status.session_name,
@@ -155,7 +155,7 @@ class CSCWManager:
                     message = self.create_paper_message(video.paper)
                     channel_name = Bot.get_valid_name(self.playback_status.session_name, self.playback_status.session_number)
                     print('Sending presentation announcement to channel: ' + str(channel_name))
-                    await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
+                    # await self.bot.send_message_by_name(channel_name, message) # Send message about the paper in the session channel
                 except Exception as ex:
                     print('Error sending video announcement to session channel for paper ' + video.paper.title + 'Reason: ' + str(ex))
             else:
@@ -226,7 +226,7 @@ class CSCWManager:
             session_message = self.create_session_message(session_videos)
             try:
                 print("Sending announcement for start of session: " + self.playback_status.session_name)
-                await self.bot.send_message(self.tv_channel_id, session_message)
+                # await self.bot.send_message(self.tv_channel_id, session_message)
             except Exception as ex:
                 print('Sending session message failed for session "' + str(session_number) + '. ' + str(session_name) +'" Reason: ' + str(ex))
 
@@ -244,19 +244,74 @@ class CSCWManager:
       
 
 
+class CSCWSchedulingHandler:
+    DELIMITER = '||||'
 
+    def __init__(self, 
+        manager,
+        time_zone=timezone.utc, grace_period = 10):
+        self.manager = manager
+        self.scheduler = AsyncIOScheduler(timezone=time_zone)
+        self.running_job_id = None
+        self.time_zone = time_zone
 
-scheduler = AsyncIOScheduler(timezone=utc)
+    def job_submitted_listener(self, event):
+        print('Running job: ' + str(event.job_id))
+        self.running_job = event.job_id
 
-def error_listener(event):
-    print('Bot is stopping. ' + str(event))
-    scheduler.shutdown(wait=False)
-    os._exit(1)
+    def job_missed_listener(self, event):
+        print('Missed job id ' + str(event.job_id))
+        
+        running_job = self.scheduler.get_job(self.running_job_id)
+        if running_job is not None:
+            running_job.pause()
+            print('Current broadcast stopped to avoid missing next session. Stopped job ' + str(self.running_job_id)) 
+
+        components = str(event.job_id).split(CSCWSchedulingHandler.DELIMITER)
+        session_number = int(components[0].strip())
+        session_name = components[1].strip()
+        
+        self.running_job_id = self.add_session(
+            time = datetime.now(self.time_zone), 
+            session_number=session_number,
+            session_name=session_name)
+        print('Recovering missed job...Starting the broadcast for the next session.' + str(event.job_id))
+        
+
+    def error_listener(self, event):
+        print('Bot is stopping. ' + str(event))
+        self.scheduler.shutdown(wait=False)
+        os._exit(1)
+        
+    def add_session(self, 
+        time, 
+        session_number, 
+        session_name, 
+        play_number = 0):
+            delimiter = CSCWSchedulingHandler.DELIMITER
+            return self.scheduler.add_job(self.manager.start_session, 'date', 
+                    id = str(session_number) + delimiter + session_name + delimiter + str(time),
+                    run_date=time, 
+                    kwargs = {
+                    'session_number': session_number,
+                    'session_name': session_name,
+                    'play_number': play_number
+                    })
+
+    def start(self):
+        self.scheduler.add_listener(self.job_submitted_listener, apscheduler.events.EVENT_JOB_SUBMITTED)
+        self.scheduler.add_listener(self.job_missed_listener, apscheduler.events.EVENT_JOB_MISSED)
+        self.scheduler.add_listener(self.error_listener, apscheduler.events.EVENT_JOB_ERROR)
+    
+        self.scheduler.start()
+
 
 # Overall approach: Schedule all the video playlists to play for each session start time in both weeks and play the video(s) for each session in playlists. Ensure that all start times are in UTC and that the clock used is UTC. Iterate over each session row (indexed by #) in the time table and schedule the videos for each session in both weeks. Lookup the corresponding data for each session in session_data.
 async def main():
     media_path = 'videos'
     scheduling_path = 'scheduling'
+    misfire_grace_period = 10
+    time_zone = timezone.utc
     status_file = os.path.join('.', 'status.json')
     playlist_file = os.path.join(scheduling_path, 'playlist.csv')
     papers_file = os.path.join(scheduling_path, 'papers.csv')
@@ -293,55 +348,57 @@ async def main():
         test_mode = args.test)
 
     manager.load_playback_status()
+
+    scheduler = CSCWSchedulingHandler(manager, time_zone)
     
     print ('Scheduling sessions...')
-    previous_job_rescheduled = False
+
+    #If there is an incomplete session, schedule that session to restart at the correct playback number
+    if manager.playback_status.playback_number > 0:
+        print('Scheduling existing playback to resume for session ' + str(manager.playback_status.session_number) + ' at video ' + str(manager.playback_status.playback_number))
+        resume_time = datetime.now(time_zone) + timedelta(seconds=5)
+        scheduler.add_session(
+                time=resume_time, 
+                session_number = manager.playback_status.session_number,
+                session_name = manager.playback_status.session_name,
+                play_number = manager.playback_status.playback_number)
+
     for i, session_row in timetable_data.iterrows():
         # Schedule the session to be broadcast at the correct time for both week 1 and week 2
         try:
-            w1_time = date_parser.parse(session_row["w1_time_utc"]).replace(tzinfo=timezone.utc)# Get the datetime for week 1 as utc
-            w2_time = date_parser.parse(session_row["w2_time_utc"]).replace(tzinfo=timezone.utc)# Get the datetime for week 2 as utc
+            w1_time = date_parser.parse(session_row["w1_time_utc"]).replace(tzinfo=time_zone)# Get the datetime for week 1 as utc
+            w2_time = date_parser.parse(session_row["w2_time_utc"]).replace(tzinfo=time_zone)# Get the datetime for week 2 as utc
         except Exception as ex:
             print('Could not parse date for row ' + str(i+2) + ' in file ' + sessions_file + '. Reason: ' + str(ex))
             continue
         
-        scheduler.add_job(manager.start_session, 
-        'date', 
-        misfire_grace_time=10,
-        run_date=w1_time, 
-        kwargs = {
-            'session_number': session_row["session_number"],
-            'session_name': session_row["session_name"],
-            })
-        scheduler.add_job(manager.start_session, 'date',
-        misfire_grace_time=10, 
-        run_date=w2_time, 
-        kwargs = {
-            'session_number': session_row["session_number"],
-            'session_name': session_row["session_name"],
-            })
+        # Add session time for week 1 but first check if time is later than right now
+        if w1_time > datetime.now(time_zone):
+            scheduler.add_session(
+            time=w1_time, 
+            session_number = session_row["session_number"],
+            session_name = session_row["session_name"])
+        else:
+            print('Cannot schedule session '+ str(session_row["session_number"]) + ' for week 1. Time is in the past. Time: ' + str(w1_time))
 
-        #If there is an incomplete session, schedule that session to restart at the correct playback number
-        if manager.playback_status.playback_number > 0 and previous_job_rescheduled == False:
-            print('Scheduling existing playback to resume for session ' + str(manager.playback_status.session_number) + ' at video ' + str(manager.playback_status.playback_number))
-            previous_job_rescheduled = True
-            resume_time = datetime.now(timezone.utc) + timedelta(seconds=10)
-            scheduler.add_job(manager.start_session, 'date', run_date=resume_time, kwargs = {
-                    'session_number': manager.playback_status.session_number,
-                    'session_name': manager.playback_status.session_name,
-                    'play_number': manager.playback_status.playback_number
-                    })
+        # Add session time for week 2, apply same check as for week 1
+        if w2_time > datetime.now(time_zone):
+            scheduler.add_session(
+            time=w2_time, 
+            session_number = session_row["session_number"],
+            session_name = session_row["session_name"])
+        else:
+            print('Cannot schedule session '+ str(session_row["session_number"]) + ' for week 2. Time is in the past. Time: ' + str(w2_time))
+            
     #End-for
-
-    scheduler.add_listener(error_listener, EVENT_JOB_ERROR)
+   
     scheduler.start()
     print("Scheduling complete.")
                 
     # Play filler video to start
     manager.play_filler()
                 
-    print('Starting Discord bot. Please keep this script running.')
-            
+    print('Starting Discord bot. Please keep this script running.')    
     await manager.bot.start()
            
         

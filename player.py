@@ -3,12 +3,12 @@ import vlc, time
 class VLCPlayer:
 
     def __init__(self, test_mode = False):
-        self.vlc_instance = vlc.Instance('--input-repeat=-1', '--mouse-hide-timeout=0', '--freetype-font=Verdana', '--freetype-rel-fontsize=22')
+        self.vlc_instance = vlc.Instance('--input-repeat=-1', '--mouse-hide-timeout=0', '--freetype-font=Verdana', '--freetype-rel-fontsize=22', '--verbose=0', '--log-verbose=1')
         self.player = self.vlc_instance.media_player_new()
 
         # Avoid displaying verbose output if not in test mode.
-        if test_mode == False:
-            self.vlc_instance.log_unset()
+        #if test_mode == False:
+            #self.vlc_instance.log_unset()
 
 
     def play_video(self, video):
