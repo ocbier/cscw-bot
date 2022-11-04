@@ -398,12 +398,6 @@ async def main():
             print('Cannot schedule session '+ str(session_row["session_number"]) + ' for week 2. Time is in the past. Time: ' + str(w2_time))
             
     #End-for
-
-    #Test schedule 
-    scheduler.add_session(
-        time=datetime.now(time_zone) + timedelta(seconds=8), 
-        session_number = 2,
-        session_name = 'test session name')
    
     scheduler.start()
     print("Scheduling complete.")
