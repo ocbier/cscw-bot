@@ -2,6 +2,7 @@ import argparse
 import asyncio, os, time
 import apscheduler.events
 import json
+import keyboard
 from xmlrpc.client import Boolean
 import pandas as pd
 from pytz import utc
@@ -74,14 +75,19 @@ class CSCWManager:
 
 
     def create_session_message(self, session_videos):
-        message = 'The session ' + self.playback_status.session_name + ' is about to start!\n\nThe following papers will be presented:'
+        message = 'The session ' + self.playback_status.session_name + ' is about to start! The following papers will be presented:'
 
         # Add titles to the announcement message
         count = 0 
         for count, video in enumerate(session_videos, start=1):
             if video.is_paper() and not video.paper.title.strip() == '':
-                message = message + '\n' + str(count) + '. ' + video.paper.title.strip()
-
+                message = message + '\n' + str(count) + '. *' + video.paper.title.strip() + '*'
+                authors = self.create_author_message(video.paper)
+                if not authors is None:
+                    message = message + '\n\tAuthors: ' + authors
+                if not (video.paper.presenter is None or video.paper.presenter == ''):
+                    message = message + '\n\tPresented by: ' + video.paper.presenter
+        message = message + '\nFor questions and discussions, chat with the presenters and authors at the session channel'
         return message
 
 
@@ -137,6 +143,13 @@ class CSCWManager:
         if self.filler_video != '':
                 try:      
                     self.player.play_video(self.filler_video)
+                    while True:
+                        if keyboard.is_pressed('s'):
+                            self.player.stop()
+                        if keyboard.is_pressed('Esc') or keyboard.is_pressed('q'):
+                            exit(0)
+                        if not self.player.is_playing():
+                            break
                 except Exception as ex:
                     print('Error playing the filler video') 
 
@@ -148,19 +161,6 @@ class CSCWManager:
             #Only play the video with correct playback number. This is needed for cases where playback has restarted after first video.
             if not video.play_order == self.playback_status.playback_number:
                 continue
-
-            #Announce the video in the session channel, if it is a paper presentation
-            if video.is_paper():
-                try:
-                    message = self.create_paper_message(video.paper)
-                    channel_name = Bot.get_valid_name(self.playback_status.session_name, self.playback_status.session_number)
-                    print('Sending presentation announcement to channel: ' + str(channel_name))
-                    
-                    await self.bot.send_message(self.tv_channel_id, message) # Send message about the paper
-                except Exception as ex:
-                    print('Error sending video announcement to session channel for paper ' + video.paper.title + 'Reason: ' + str(ex))
-            else:
-                print('Not a paper presentation. No announcement sent.')
             
             try:
                 print('Now playing video # ' + str(video.play_order) + ': ' + video.video_path)
@@ -173,6 +173,10 @@ class CSCWManager:
                 time.sleep(1)
 
                 while True:
+                    if keyboard.is_pressed('s'):
+                        self.player.stop()
+                    if keyboard.is_pressed('Esc') or keyboard.is_pressed('q'):
+                        exit(0)
                     if not self.player.is_playing():
                         break
                     continue
@@ -394,6 +398,12 @@ async def main():
             print('Cannot schedule session '+ str(session_row["session_number"]) + ' for week 2. Time is in the past. Time: ' + str(w2_time))
             
     #End-for
+
+    #Test schedule 
+    scheduler.add_session(
+        time=datetime.now(time_zone) + timedelta(seconds=8), 
+        session_number = 2,
+        session_name = 'test session name')
    
     scheduler.start()
     print("Scheduling complete.")
@@ -403,6 +413,7 @@ async def main():
                 
     print('Starting Discord bot. Please keep this script running.')    
     await manager.bot.start()
+
            
         
    
