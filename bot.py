@@ -1,7 +1,9 @@
 import discord
 from exceptions import ChannelNotFoundException
 from discord.utils import get
-
+import asyncio
+import os
+from dotenv import load_dotenv
 
 class Bot:
 
@@ -35,7 +37,10 @@ class Bot:
         else:
             await channel_obj.send(message)
 
-        
+    async def get_channel_id_by_name(self, channel_name):
+        print('get_channel_id_by_name:', channel_name)
+        channel_obj = discord.utils.get(self.client.get_all_channels(), guild__id = int(self.guild_id), name=channel_name, type=discord.ChannelType.text)
+        return channel_obj.id
 
     @staticmethod
     def get_valid_name(channel_name, channel_number):
@@ -50,3 +55,28 @@ class Bot:
 
 
 
+
+async def initiate(bot):
+    await bot.start()
+    await asyncio.sleep(10)
+    
+
+async def test(bot):
+    await asyncio.sleep(2)
+    await bot.send_message_by_name('📺-tv-test', 'bot test - Hello Discord!')
+    id = await bot.get_channel_id_by_name('📺-tv-test')
+    print(id)
+
+async def main():
+    load_dotenv()
+    bot_token = os.getenv('TOKEN')
+    live_tv_channel = int(os.getenv('TV_CHANNEL_ID'))
+    guild_id = os.getenv('GUILD_ID')
+
+    print (bot_token, live_tv_channel, guild_id)
+    bot = Bot(bot_token, guild_id, test_mode = False) # Create the bot
+    await asyncio.gather(initiate(bot), test(bot))
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
