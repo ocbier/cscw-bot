@@ -74,8 +74,8 @@ class CSCWManager:
         self.playback_status.playback_number = status_dict["playback_number"]
 
 
-    def create_session_message(self, session_videos):
-        message = 'The session ' + self.playback_status.session_name + ' is about to start! The following papers will be presented:'
+    def create_session_message(self, session_number, session_name, session_channel_id, session_videos):
+        message = 'The session #' + str(session_number) + ". " + session_name + ' is about to start! The following papers will be presented:'
 
         # Add titles to the announcement message
         count = 0 
@@ -87,7 +87,7 @@ class CSCWManager:
                     message = message + '\n\tAuthors: ' + authors
                 if not (video.paper.presenter is None or video.paper.presenter == ''):
                     message = message + '\n\tPresented by: ' + video.paper.presenter
-        message = message + '\nFor questions and discussions, chat with the presenters and authors at the session channel'
+        message = message + '\nFor questions and discussions, chat with the presenters and authors at <#'+str(session_channel_id)+'>'
         return message
 
 
@@ -228,7 +228,8 @@ class CSCWManager:
 
         # If the session is starting from the first video and there are videos to play, send an announcement.
         if self.playback_status.playback_number == 0 and len(session_videos) > 0:
-            session_message = self.create_session_message(session_videos)
+            session_channel_id = await self.bot.get_channel_id_by_name(self.bot.get_valid_name(session_name, session_number))
+            session_message = self.create_session_message(session_number, session_name, session_channel_id, session_videos)
             try:
                 print("Sending announcement for start of session: " + self.playback_status.session_name)
                 await self.bot.send_message(self.tv_channel_id, session_message)
@@ -240,6 +241,7 @@ class CSCWManager:
             self.save_playback_status()
 
         try:  
+            pass
             await self.broadcast_session(session_videos)               
         except Exception as ex:
             print('Broadcasting session failed for session ' + str(session_number) + '. ' + str(session_name) +'. Reason: ' +str(ex))
@@ -396,7 +398,6 @@ async def main():
             session_name = session_row["session_name"])
         else:
             print('Cannot schedule session '+ str(session_row["session_number"]) + ' for week 2. Time is in the past. Time: ' + str(w2_time))
-            
     #End-for
    
     scheduler.start()
