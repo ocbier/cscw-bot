@@ -23,7 +23,7 @@ class Bot:
         if channel_obj is None:
             raise ChannelNotFoundException('Error sending message to channel. Could not get the channel with id ' + str(channel_id))
         else:
-            await channel_obj.send(message)
+            await channel_obj.send("[This is a test message]\n" + message)
 
 
     # Sends a message to a channel with the matching channel name. Append '-test' if in test mode.
