@@ -75,7 +75,7 @@ class CSCWManager:
 
 
     def create_session_message(self, session_number, session_name, session_channel_id, session_videos):
-        message = 'The session **' + str(session_number) + ". " + session_name + '** is about to start! The following papers will be presented:'
+        message = '----\nThe session **' + str(session_number) + ". " + session_name + '** is about to start! The following papers will be presented:'
 
         # Add titles to the announcement message
         count = 0 
@@ -228,9 +228,9 @@ class CSCWManager:
 
         # If the session is starting from the first video and there are videos to play, send an announcement.
         if self.playback_status.playback_number == 0 and len(session_videos) > 0:
-            name = self.bot.get_valid_name(session_name, session_number)
-            session_channel_id = await self.bot.get_channel_id_by_name(self.bot.get_valid_name(session_name, session_number))
-            session_message = self.create_session_message(session_number, session_name, name, session_videos)
+            channel_name = self.bot.get_valid_name(session_name, session_number)
+            session_channel_id = await self.bot.get_channel_id_by_name(channel_name)
+            session_message = self.create_session_message(session_number, session_name, session_channel_id, session_videos)
             try:
                 print("Sending announcement for start of session: " + self.playback_status.session_name)
                 await self.bot.send_message(self.tv_channel_id, session_message)
