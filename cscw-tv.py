@@ -75,7 +75,7 @@ class CSCWManager:
 
 
     def create_session_message(self, session_number, session_name, session_channel_id, session_videos):
-        message = 'The session #' + str(session_number) + ". " + session_name + ' is about to start! The following papers will be presented:'
+        message = 'The session **' + str(session_number) + ". " + session_name + '** is about to start! The following papers will be presented:'
 
         # Add titles to the announcement message
         count = 0 
@@ -228,8 +228,9 @@ class CSCWManager:
 
         # If the session is starting from the first video and there are videos to play, send an announcement.
         if self.playback_status.playback_number == 0 and len(session_videos) > 0:
+            name = self.bot.get_valid_name(session_name, session_number)
             session_channel_id = await self.bot.get_channel_id_by_name(self.bot.get_valid_name(session_name, session_number))
-            session_message = self.create_session_message(session_number, session_name, session_channel_id, session_videos)
+            session_message = self.create_session_message(session_number, session_name, name, session_videos)
             try:
                 print("Sending announcement for start of session: " + self.playback_status.session_name)
                 await self.bot.send_message(self.tv_channel_id, session_message)
@@ -363,7 +364,7 @@ async def main():
     #If there is an incomplete session, schedule that session to restart at the correct playback number
     if manager.playback_status.playback_number > 0:
         print('Scheduling existing playback to resume for session ' + str(manager.playback_status.session_number) + ' at video ' + str(manager.playback_status.playback_number))
-        resume_time = datetime.now(time_zone) + timedelta(seconds=5)
+        resume_time = datetime.now(time_zone) + timedelta(seconds=10)
         scheduler.add_session(
                 time=resume_time, 
                 session_number = manager.playback_status.session_number,
@@ -399,6 +400,16 @@ async def main():
         else:
             print('Cannot schedule session '+ str(session_row["session_number"]) + ' for week 2. Time is in the past. Time: ' + str(w2_time))
     #End-for
+
+    #Test schedule
+    if False:
+        for i, session_row in timetable_data.iterrows():
+            session_number = i+1
+            if session_number == 52:
+                scheduler.add_session(
+                    time=datetime.now(time_zone) + timedelta(seconds=10), 
+                    session_number = session_number,
+                    session_name = session_row["session_name"])
    
     scheduler.start()
     print("Scheduling complete.")
