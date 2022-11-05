@@ -75,7 +75,7 @@ class CSCWManager:
 
 
     def create_session_message(self, session_number, session_name, session_channel_id, session_videos):
-        message = '----\nThe session **' + str(session_number) + ". " + session_name + '** is about to start! The following papers will be presented:'
+        message = '----\n[Test Message] The session **' + str(session_number) + ". " + session_name + '** is about to start! The following papers will be presented:'
 
         # Add titles to the announcement message
         count = 0 
